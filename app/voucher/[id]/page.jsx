@@ -1,0 +1,24 @@
+import {notFound} from 'next/navigation';
+import BackLink from '../../../components/BackLink';
+import {voucher} from '../../../lib/bookings.js';import {qrSvg} from '../../../lib/qr.js';import {SITE} from '../../../lib/site';import {fmt,nightsBetween} from '../../../lib/rules.js';import {fmtDate,fmtStamp} from '../../../lib/format.js';
+import {getContact,hasContact as hasC} from '../../../lib/settings.js';import Logo from '../../../components/Logo';import PrintButton from '../../../components/PrintButton';
+export const dynamic='force-dynamic';
+export const metadata={title:'Booking voucher',robots:{index:false,follow:false}};
+const NOTE={expired:['Hold expired','The dates were released. This voucher is no longer valid.','bg-fog text-ink'],pending:['Awaiting downpayment','Not valid until the downpayment is received and the booking is confirmed.','bg-amber-100 text-amber-900'],confirmed:['Confirmed','Present this voucher at check-in.','bg-emerald-100 text-emerald-900'],completed:['Stay completed','Thank you for staying with us!','bg-sky-100 text-sky-900'],cancelled:['Cancelled','This booking is no longer valid.','bg-red-100 text-red-900']};
+export default async function Voucher({params,searchParams}){
+ const {t,from}=await searchParams;
+ let v=null;try{v=voucher((await params).id,t)}catch(e){console.error(e)}if(!v)notFound();
+ const returnHref=from==='lookup'?'/my-booking?ref='+encodeURIComponent(v.id):from==='reservation'?'/#reserve':'/';
+ const returnLabel=from==='lookup'?'Back to My Booking':from==='reservation'?'Back to your reservation':'Back to website';
+ const CONTACT=getContact(),[label,help,tone]=NOTE[v.status],n=nightsBetween(v.in,v.out),qr=qrSvg(`${SITE}/admin?ref=${v.id}`,{margin:1});
+ const Row=({a,b})=><div className="flex justify-between gap-6 border-b border-ink/10 py-2.5"><dt className="text-ash">{a}</dt><dd className="text-right font-medium">{b}</dd></div>;
+ return <main className="min-h-screen px-3 pb-safe pt-[max(1rem,env(safe-area-inset-top))] md:px-4 md:py-16"><div className="mx-auto max-w-2xl">
+  <div className="noprint mb-6 flex flex-wrap items-center justify-between gap-3"><BackLink href={returnHref}>{returnLabel}</BackLink><PrintButton/></div>
+  <article className="voucher card p-5 sm:p-8 md:p-12"><header className="flex flex-wrap items-start justify-between gap-4 border-b-2 border-ink pb-5 md:gap-6 md:pb-6"><Logo/><div className="text-right"><p className="text-sm text-ash">Booking voucher</p><p className="mt-1 break-all text-2xl font-semibold tracking-wide md:text-3xl">{v.id}</p></div></header>
+   <p className={'mt-6 rounded-md px-4 py-3 text-sm '+tone}><b>{label}.</b> {help}</p>
+   <div className="mt-6 grid gap-8 md:grid-cols-[1fr_auto]"><dl className="text-sm"><Row a="Guest" b={v.name}/><Row a="Check-in" b={<>{fmtDate(v.in)}<br/><span className="font-normal text-ash">from 2:00 PM</span></>}/><Row a="Check-out" b={<>{fmtDate(v.out)}<br/><span className="font-normal text-ash">by 12:00 NN</span></>}/><Row a="Nights" b={n}/>
+     <Row a={v.units.length>1?'Units':'Unit'} b={v.units.map(u=><span key={u.id} className="block">{u.unit} <span className="font-normal text-ash">({u.unit!==u.typeName&&u.typeName+', '}{u.guests} guests)</span></span>)}/>{v.event&&<Row a="Occasion" b={v.event}/>}</dl>
+    <div className="text-center"><div className="mx-auto h-40 w-40 [&>svg]:h-full [&>svg]:w-full" role="img" aria-label="QR code for front-desk check-in" dangerouslySetInnerHTML={{__html:qr}}/><p className="mt-2 text-[.8125rem] text-ash md:text-xs">Scan at the front desk</p></div></div>
+   <dl className="mt-4 rounded-md bg-fog p-5 text-sm"><div className="flex justify-between py-1"><dt>Total</dt><dd className="font-medium">{fmt(v.total)}</dd></div>{v.chargesTotal>0&&<div className="flex justify-between py-1"><dt>Fines &amp; charges</dt><dd className="font-medium">{fmt(v.chargesTotal)}</dd></div>}<div className="flex justify-between py-1"><dt>Downpayment required (50%)</dt><dd className="font-medium">{fmt(v.down)}</dd></div><div className="flex justify-between py-1"><dt>Paid so far</dt><dd className="font-medium">{fmt(v.paid)}</dd></div><div className="flex justify-between border-t border-ink/20 pt-2 text-base"><dt>Balance due at check-in</dt><dd className="text-2xl font-semibold">{fmt(Math.max(0,v.balance))}</dd></div></dl>
+   {v.notes&&<p className="mt-4 text-sm"><b>Special requests:</b> {v.notes}</p>}
+   <footer className="mt-8 border-t border-ink/15 pt-5 text-[.8125rem] leading-relaxed text-ash md:text-xs"><p>Booked {fmtStamp(v.created)} (PH time). Cancellations made less than 3 days before check-in are non-refundable. Please see our Terms &amp; Conditions for house rules, damages and fees.</p><p className="mt-2">Bella Vista Hotel &amp; Events Place · open Monday to Sunday{hasC(CONTACT)&&<> · {[CONTACT.phone,CONTACT.email].filter(Boolean).join(' · ')}</>}</p></footer></article></div></main>}

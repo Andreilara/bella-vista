@@ -1,0 +1,11 @@
+import test from 'node:test';import assert from 'node:assert/strict';
+import {quote,validate,addDays,today} from '../lib/rules.js';
+const t=today(),a=addDays(t,3),b=addDays(t,5),base={type:'std',unit:'Room A',in:a,out:b,guests:2};
+test('3rd Standard guest adds 1000/night',()=>assert.equal(quote('std',3,a,b).total,9000));
+test('hall over 30 guests adds 500 each',()=>assert.equal(quote('hall',35,a,addDays(a,1)).total,17500));
+test('family room flat rate',()=>assert.equal(quote('fam',5,a,b).total,12000));
+test('valid booking passes',()=>assert.equal(validate(base,[]),''));
+test('month 13 rejected',()=>assert.notEqual(validate({...base,in:'2099-13-01',out:'2099-14-01'},[]),''));
+test('stay over 30 nights rejected',()=>assert.notEqual(validate({...base,out:addDays(a,31)},[]),''));
+test('overlap rejected, same-day turnover allowed',()=>{const ex=[{unit:'Room A',in:a,out:b,status:'confirmed'}];assert.notEqual(validate(base,ex),'');assert.equal(validate({...base,in:b,out:addDays(b,1)},ex),'')});
+test('hall max 40',()=>assert.notEqual(validate({type:'hall',unit:'Event Hall',in:a,out:b,guests:41},[]),''));

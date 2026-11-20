@@ -1,0 +1,10 @@
+node_modules
+.next
+data/*.db
+data/*.db-*
+data/bookings.json*
+data/gallery/
+data/backups/
+.env*
+!.env.example
+.vercel/
